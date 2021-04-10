@@ -1,0 +1,47 @@
+
+
+
+
+image: docker:latest
+services:
+  - docker:dind
+
+variables:
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_DRIVER: overlay2
+  CONTAINER_TEST_IMAGE: $CI_REGISTRY_IMAGE:$CI_BUILD_REF_SLUG
+  CONTAINER_RELEASE_IMAGE: $CI_REGISTRY_IMAGE:latest
+
+stages:
+  - test
+  - deploy
+
+test:
+  stage: test
+  image: tiangolo/docker-with-compose
+  script:
+    - docker-compose build
+    - docker-compose run api python manage.py collectstatic --noinput --verbosity=0
+    - docker-compose run api black --check .
+    - docker-compose run api flake8 saleor
+    - docker-compose run api isort --check-only saleor
+    - docker-compose run api sh -c 'find saleor -name "*.py" -type f ! -path "*tests*" | xargs pydocstyle -v'
+    - docker-compose run api python manage.py migrate
+    - docker-compose run api python manage.py makemigrations --dry-run --check
+    - docker-compose run api pytest --cov --cov-report= --django-db-bench="/tmp/queries-results.json"
+
+deploy:
+  stage: deploy
+  before_script:
+    - apk add --no-cache openssh-client bash
+    - mkdir -p ~/.ssh
+    - echo "$DEPLOY_KEY_PRIVATE" >> ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - eval "$(ssh-agent -s)"
+    - ssh-add ~/.ssh/id_rsa
+    - ssh-keyscan -t rsa 104.131.113.95 >> ~/.ssh/known_hosts
+
+  script:
+    - ssh -i ~/.ssh/id_rsa root@104.131.113.95 'cd /root/sonjay && git pull git@gitlab.com:sonnhfit/sonjay.git'
+  only:
+    - master
