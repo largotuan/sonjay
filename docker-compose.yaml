@@ -3,7 +3,7 @@ version: '2'
 services:
   api:
     ports:
-      - :8000
+      - 8000:8000
     hostname: gamehtml5.xyz
     build:
       context: .
@@ -23,7 +23,7 @@ services:
       - ./tests/:/app/tests
       # shared volume between worker and api for media
       - saleor-media:/app/media
-    command: python manage.py runserver 0.0.0.0:8000
+    command: python manage.py runserver 0.0.0.0
     env_file: common.env
     environment:
       - JAEGER_AGENT_HOST=jaeger
