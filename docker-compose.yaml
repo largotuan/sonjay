@@ -3,7 +3,7 @@ version: '2'
 services:
   api:
     ports:
-      - 8000:
+      - :8000
     hostname: gamehtml5.xyz
     build:
       context: .
